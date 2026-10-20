@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khám Phá Thuật Toán Sắp Xếp Chèn Trực Tiếp</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .bg-game {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(99, 102, 241, 0.25) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(168, 85, 247, 0.25) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(14, 165, 233, 0.15) 0px, transparent 50%),
+                radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 24px 24px;
+        }
+
+        .math-pattern-overlay {
+            background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='10' y='25' fill='rgba(255,255,255,0.05)' font-size='20' font-family='sans-serif'%3E%2B%3C/text%3E%3Ctext x='70' y='45' fill='rgba(255,255,255,0.05)' font-size='22' font-family='sans-serif'%3E%C3%B7%3C/text%3E%3Ctext x='40' y='85' fill='rgba(255,255,255,0.05)' font-size='18' font-family='sans-serif'%3E%C3%97%3C/text%3E%3Ctext x='90' y='105' fill='rgba(255,255,255,0.05)' font-size='24' font-family='sans-serif'%3E%3D%3C/text%3E%3C/svg%3E");
+        }
+
+        .number-card {
+            transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+            cursor: pointer;
+            font-family: 'Fredoka', cursive;
+        }
+        
+        .number-card:hover { transform: scale(1.05); }
+        .number-card:active { transform: scale(1.08); box-shadow: 0 10px 20px rgba(0,0,0,0.25); }
+        .number-card.dragging { opacity: 0.5; }
+
+        .drop-slot { transition: all 0.2s ease-in-out; }
+        .drop-slot.drag-over {
+            background-color: #fef08a !important;
+            border-color: #eab308 !important;
+            transform: scale(1.05);
+        }
+
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .animate-bounce-gentle { animation: bounce-gentle 2.5s infinite ease-in-out; }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.99); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+            100% { transform: scale(0.99); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+        }
+        .row-active-indicator { animation: pulse-ring 2s infinite; }
+
+        .ai-moving-card {
+            box-shadow: 0 0 20px #06b6d4, 0 0 10px #38bdf8;
+            transform: scale(1.1);
+        }
+
+        .ai-animated-fly-card {
+            position: fixed;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 15px 25px rgba(6, 182, 212, 0.4);
+        }
+
+        /* Cuộn mượt cho khu vực các hàng */
+        #rows-container::-webkit-scrollbar { width: 6px; }
+        #rows-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        #rows-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-game math-pattern-overlay min-h-screen flex items-center justify-center p-2 sm:p-4 text-slate-800">
+
+    <div class="w-full max-w-6xl bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border-4 border-indigo-200/50 p-3 sm:p-5 flex flex-col justify-between min-h-[92vh] relative overflow-hidden">
+        
+        <!-- Header -->
+        <header class="flex items-center justify-between bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 rounded-2xl p-2.5 sm:p-3 mb-2 border border-indigo-300/30 shadow-md text-white">
+            <div class="flex items-center space-x-3">
+                <div class="bg-amber-400 text-indigo-950 p-2 sm:p-2.5 rounded-xl shadow-md flex items-center justify-center text-xl sm:text-2xl animate-bounce-gentle">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] sm:text-xs font-extrabold uppercase text-amber-400 tracking-wider block">Thuật Toán Chuẩn</span>
+                    <h1 class="text-base sm:text-xl font-black text-white leading-tight flex items-center gap-2">
+                        <span>Sắp Xếp Chèn Trực Tiếp</span>
+                        <span id="step-count-badge" class="text-xs font-bold bg-indigo-700 text-cyan-200 px-2.5 py-0.5 rounded-full border border-indigo-400/40">
+                            5 Hàng
+                        </span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Stats Panel -->
+            <div id="stats-panel" class="hidden flex items-center space-x-2 sm:space-x-4">
+                <div class="flex items-center space-x-1.5 sm:space-x-2 bg-amber-400/20 border border-amber-300/40 px-2.5 sm:px-3 py-1 rounded-xl">
+                    <i class="fa-solid fa-rotate text-amber-300 text-base sm:text-lg"></i>
+                    <div class="text-left">
+                        <span class="block text-[9px] sm:text-[10px] font-bold uppercase text-amber-200 leading-none">Lần chơi</span>
+                        <span id="round-display" class="text-sm sm:text-base font-black text-amber-300 leading-tight">1</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-1.5 sm:space-x-2 bg-cyan-400/20 border border-cyan-300/40 px-2.5 sm:px-3 py-1 rounded-xl relative">
+                    <i class="fa-solid fa-stopwatch text-cyan-300 text-base sm:text-lg"></i>
+                    <div class="text-left">
+                        <span id="timer-label-text" class="block text-[9px] sm:text-[10px] font-bold uppercase text-cyan-200 leading-none">Thời gian</span>
+                        <span id="timer-display" class="text-sm sm:text-base font-black text-cyan-300 leading-tight">00:00</span>
+                    </div>
+                    <span id="penalty-badge" class="hidden absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-bounce shadow">
+                        +30s
+                    </span>
+                </div>
+
+                <button id="btn-open-teacher-modal" title="Cấu hình dành cho giáo viên" class="bg-indigo-700/80 hover:bg-indigo-600 text-white p-2 rounded-xl transition shadow-sm hover:rotate-45 border border-indigo-400/40">
+                    <i class="fa-solid fa-gear text-base sm:text-lg"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main id="game-workspace" class="flex-1 flex flex-col justify-center my-1 sm:my-2 relative">
+            
+            <!-- AI Mode Badge & Speed controls -->
+            <div id="ai-mode-badge" class="hidden mb-2 bg-cyan-100 border-2 border-cyan-400 text-cyan-900 px-3 sm:px-4 py-2 rounded-2xl flex flex-wrap items-center justify-between gap-2 shadow-md">
+                <div class="flex items-center space-x-2 font-black text-xs sm:text-sm">
+                    <i class="fa-solid fa-robot text-cyan-600 text-xl animate-bounce"></i>
+                    <span id="ai-status-text">ROBOT AI ĐANG SẮP XẾP TỰ ĐỘNG...</span>
+                </div>
+                <!-- Speed Toggles -->
+                <div class="flex items-center space-x-1 bg-cyan-200/90 p-1 rounded-xl border border-cyan-300">
+                    <span class="text-[11px] font-black text-cyan-900 px-1 flex items-center gap-1">
+                        <i class="fa-solid fa-gauge-high"></i> Tốc độ:
+                    </span>
+                    <button type="button" data-speed="1" class="speed-toggle-btn px-2 py-0.5 rounded-lg text-xs font-black transition text-cyan-800 hover:bg-white/60">1x</button>
+                    <button type="button" data-speed="2" class="speed-toggle-btn px-2 py-0.5 rounded-lg text-xs font-black transition text-cyan-800 hover:bg-white/60">2x</button>
+                    <button type="button" data-speed="4" class="speed-toggle-btn px-2 py-0.5 rounded-lg text-xs font-black transition bg-white text-cyan-950 shadow-sm border border-cyan-300">4x Nhanh</button>
+                    <button type="button" data-speed="8" class="speed-toggle-btn px-2 py-0.5 rounded-lg text-xs font-black transition text-cyan-800 hover:bg-white/60">Turbo</button>
+                </div>
+            </div>
+
+            <!-- Dynamic Rows Container (Tự động co giãn theo số bước) -->
+            <div id="rows-container" class="space-y-2 max-h-[63vh] overflow-y-auto pr-1">
+                <!-- Các hàng sẽ tự động sinh hoàn toàn theo số bước của thuật toán -->
+            </div>
+
+            <!-- Toast -->
+            <div id="toast-message" class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 bg-slate-900/90 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-700 text-sm font-bold animate-bounce-gentle">
+                <i id="toast-icon" class="fa-solid fa-circle-info text-yellow-400 text-xl"></i>
+                <span id="toast-text">Thông báo</span>
+            </div>
+        </main>
+
+        <!-- Footer Control Area -->
+        <footer id="footer-controls" class="hidden mt-2 pt-2 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center space-x-2 text-slate-700 text-xs sm:text-sm font-bold bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl">
+                <i class="fa-solid fa-lightbulb text-amber-500 text-base"></i>
+                <span id="instruction-tip">Bấm/kéo số xuống hàng dưới. Bấm vào số ở hàng dưới để gỡ lại!</span>
+            </div>
+
+            <div class="flex items-center space-x-2 sm:space-x-3 ml-auto">
+                <button id="btn-hint" class="hidden bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold px-4 py-2.5 rounded-2xl shadow-lg shadow-amber-500/30 transition flex items-center space-x-2 text-sm sm:text-base border border-amber-300/40">
+                    <i class="fa-solid fa-hand-holding-hand text-amber-200"></i>
+                    <span>Hỗ Trợ (+30s)</span>
+                </button>
+                <button id="btn-check" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-extrabold px-5 sm:px-6 py-2.5 rounded-2xl shadow-lg shadow-emerald-500/30 transition flex items-center space-x-2 text-sm sm:text-base">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Kiểm tra</span>
+                </button>
+                <button id="btn-restart" class="bg-slate-500 hover:bg-slate-600 active:scale-95 text-white font-bold px-3.5 sm:px-4 py-2.5 rounded-2xl shadow transition flex items-center space-x-2 text-xs sm:text-sm">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Chơi lại</span>
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-gradient-to-b from-indigo-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-8 max-w-xl w-full text-center shadow-2xl border-4 border-indigo-400/50 relative overflow-hidden text-white">
+            <div class="relative z-10 mb-4 flex items-center justify-center">
+                <div class="w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-tr from-amber-400 via-indigo-500 to-cyan-400 p-1 rounded-3xl shadow-xl animate-bounce-gentle">
+                    <div class="w-full h-full bg-slate-900 rounded-[22px] flex flex-col items-center justify-center text-amber-300 relative">
+                        <i class="fa-solid fa-robot text-4xl sm:text-5xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-black text-amber-300 mb-2 tracking-wide">
+                Sắp Xếp Chèn Trực Tiếp
+            </h2>
+            
+            <p id="start-welcome-text" class="text-indigo-100 font-bold text-sm sm:text-base mb-6 leading-relaxed bg-indigo-900/60 p-4 rounded-2xl border border-indigo-700/60 shadow-inner">
+                Bạn hãy sắp xếp dãy số sau theo thuật toán chèn trực tiếp!
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button id="btn-start-game" class="w-full sm:w-auto bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-95 text-indigo-950 text-base sm:text-lg font-black px-8 py-3.5 rounded-2xl shadow-xl transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>BẮT ĐẦU NGAY</span>
+                </button>
+                <button id="btn-open-teacher-start" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-5 py-3.5 rounded-2xl transition border border-slate-600 flex items-center justify-center space-x-2 text-sm">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Cài Đặt Dãy Số</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VICTORY MODAL -->
+    <div id="victory-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-3xl p-5 sm:p-7 max-w-lg w-full text-center shadow-2xl border-4 border-amber-300 relative overflow-hidden">
+            <div class="text-amber-400 text-5xl sm:text-6xl mb-1 animate-bounce-gentle">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+
+            <h2 id="victory-title" class="text-2xl sm:text-3xl font-black text-slate-900 mb-0.5">Hoàn Thành Xuất Sắc!</h2>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4" id="victory-round-info">Lần chơi thứ 1</p>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="bg-sky-50 border border-sky-200 p-2.5 sm:p-3 rounded-2xl text-center">
+                    <i class="fa-solid fa-clock text-sky-500 text-lg mb-1"></i>
+                    <span class="block text-[10px] font-bold text-sky-600 uppercase">Thời gian</span>
+                    <span id="final-time" class="text-lg sm:text-xl font-black text-sky-900">00:00</span>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 p-2.5 sm:p-3 rounded-2xl text-center">
+                    <i class="fa-solid fa-star text-amber-500 text-lg mb-1"></i>
+                    <span class="block text-[10px] font-bold text-amber-600 uppercase">Điểm số</span>
+                    <span id="final-score" class="text-lg sm:text-xl font-black text-amber-900">0</span>
+                </div>
+            </div>
+
+            <div id="ai-comparison-box" class="hidden bg-cyan-50 border-2 border-cyan-300 p-3 rounded-2xl mb-4 text-left">
+                <div class="flex items-center space-x-2 text-cyan-900 font-extrabold text-xs sm:text-sm mb-2 border-b border-cyan-200 pb-1.5">
+                    <i class="fa-solid fa-robot text-cyan-600 text-base"></i>
+                    <span>ĐỐI CHIẾU KẾT QUẢ VỚI ROBOT AI:</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-center text-xs font-extrabold">
+                    <div class="bg-white p-2 rounded-xl border border-cyan-200">
+                        <span class="block text-[10px] text-slate-500 uppercase">Thời gian AI</span>
+                        <span id="ai-time-display" class="text-cyan-700 font-black text-sm sm:text-base">00:00</span>
+                    </div>
+                    <div class="bg-white p-2 rounded-xl border border-cyan-200">
+                        <span class="block text-[10px] text-slate-500 uppercase">So sánh Tốc độ</span>
+                        <span id="ai-speed-comparison" class="text-emerald-600 font-black text-xs sm:text-sm">Nhanh hơn AI</span>
+                    </div>
+                </div>
+            </div>
+
+            <p id="victory-feedback" class="text-slate-700 font-bold text-xs sm:text-sm bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl mb-4 text-emerald-800">
+                Chúc mừng bạn đã hoàn thành bài tập!
+            </p>
+
+            <div class="flex flex-col gap-2.5">
+                <button id="btn-watch-ai" class="w-full bg-cyan-600 hover:bg-cyan-700 active:scale-95 text-white text-base font-black py-3 rounded-2xl shadow-lg transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>XEM AI THỰC HIỆN TỰ ĐỘNG</span>
+                </button>
+                <button id="btn-play-again" class="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-base font-black py-3 rounded-2xl shadow-lg transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>CHƠI VÒNG TIẾP THEO (DÃY SỐ MỚI)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEACHER CONFIG MODAL -->
+    <div id="teacher-modal" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[90vh] flex flex-col border-2 border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+                <div class="flex items-center space-x-2 text-indigo-700 font-extrabold text-xl">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Tùy Chỉnh Đề Bài (Dành Cho Giáo Viên)</span>
+                </div>
+                <button id="btn-close-teacher-modal" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+                <div>
+                    <label class="block text-xs font-extrabold uppercase text-slate-600 mb-1">Lời chào bắt đầu:</label>
+                    <input type="text" id="config-welcome-text" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-extrabold uppercase text-slate-600 mb-1">Dãy số ban đầu (Cách nhau bởi dấu phẩy):</label>
+                    <input type="text" id="config-row-1" placeholder="Ví dụ: 3, 5, 4, 1, 7, 9, 8, 6" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+                    <span class="text-[11px] text-slate-500 mt-1 block">💡 Hệ thống sẽ tự động tính toán đúng 100% các bước chèn tiếp theo!</span>
+                </div>
+
+                <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100">
+                    <span class="block text-xs font-black uppercase text-indigo-900 mb-2">Xem trước các bước chèn sẽ sinh ra:</span>
+                    <div id="preview-steps-box" class="text-xs space-y-1 font-semibold text-slate-700 font-mono">
+                        <!-- Tự động cập nhật xem trước -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 mt-4 flex items-center justify-end space-x-3">
+                <button id="btn-reset-default-config" class="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-4 py-2 rounded-xl text-xs transition">
+                    Dãy số mẫu mặc định
+                </button>
+                <button id="btn-save-teacher-config" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-6 py-2 rounded-xl text-sm transition shadow-md">
+                    Lưu & Cập nhật
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_INITIAL_ARRAY = [3, 5, 4, 1, 7, 9, 8, 6];
+
+        // THUẬT TOÁN CHÈN TRỰC TIẾP CHUẨN 100% (Số bước hoàn toàn tự động và chính xác)
+        function calculateInsertionSortSteps(initialArr) {
+            const arr = [...initialArr];
+            // Hàng đầu tiên: Dãy ban đầu
+            const steps = [
+                {
+                    rowValues: [...arr],
+                    note: "Dãy ban đầu"
+                }
+            ];
+
+            // Duyệt từng vị trí từ 1 đến n-1 theo đúng định nghĩa giải thuật
+            for (let i = 1; i < arr.length; i++) {
+                let key = arr[i];
+                let j = i - 1;
+                let shifted = false;
+
+                // Dịch các phần tử lớn hơn key sang phải 1 vị trí
+                while (j >= 0 && arr[j] > key) {
+                    arr[j + 1] = arr[j];
+                    j--;
+                    shifted = true;
+                }
+                arr[j + 1] = key;
+
+                // CHỈ TẠO BƯỚC MỚI KHI THỰC SỰ CÓ SỰ CHÈN / ĐỔI VỊ TRÍ
+                if (shifted) {
+                    steps.push({
+                        rowValues: [...arr],
+                        note: `Chèn ${key} vào vị trí ${j + 2}`
+                    });
+                }
+            }
+
+            // Trường hợp mảng đã sắp xếp sẵn
+            if (steps.length === 1) {
+                steps.push({
+                    rowValues: [...arr],
+                    note: "Dãy đã sắp xếp hoàn tất"
+                });
+            }
+
+            return steps;
+        }
+
+        // TẠO DÃY NGẪU NHIÊN CÓ ĐỘ DÀI TỪ 3 ĐẾN 5 BƯỚC CHÈN (Để game không quá ngắn và không quá dài)
+        function generateRandomArray() {
+            let attempts = 0;
+            while (attempts < 80) {
+                const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                for (let i = digits.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [digits[i], digits[j]] = [digits[j], digits[i]];
+                }
+                const candidate = digits.slice(0, 8);
+                const steps = calculateInsertionSortSteps(candidate);
+                
+                // Chọn dãy số có từ 4 đến 6 hàng (tức là 3 đến 5 bước chèn)
+                if (steps.length >= 4 && steps.length <= 6) {
+                    return candidate;
+                }
+                attempts++;
+            }
+            return [4, 2, 7, 1, 9, 3, 6, 5];
+        }
+
+        let currentGameConfig = {
+            welcomeText: "Bạn hãy sắp xếp dãy số sau theo thuật toán chèn trực tiếp!",
+            steps: calculateInsertionSortSteps(DEFAULT_INITIAL_ARRAY)
+        };
+
+        let roundCounter = 1;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let humanTimeElapsed = 0;
+        let humanScore = 0;
+        let aiTimeElapsed = 0;
+        let isAiMode = false;
+        let aiMovingSlot = null;
+        let hintsUsedCount = 0;
+        let aiSpeedFactor = 4; // Mặc định chạy nhanh 4x
+
+        let activeRowIndex = 0;
+        let activeRowState = []; 
+        let currentDraftRow = []; 
+        let draggedItemInfo = null; 
+
+        const CARD_COLORS = [
+            'bg-red-400 border-red-500 text-white',
+            'bg-orange-400 border-orange-500 text-white',
+            'bg-amber-400 border-amber-500 text-white',
+            'bg-emerald-400 border-emerald-500 text-white',
+            'bg-teal-400 border-teal-500 text-white',
+            'bg-sky-400 border-sky-500 text-white',
+            'bg-indigo-400 border-indigo-500 text-white',
+            'bg-purple-400 border-purple-500 text-white',
+            'bg-pink-400 border-pink-500 text-white'
+        ];
+
+        function getColorForNumber(num) {
+            const index = Math.abs(num) % CARD_COLORS.length;
+            return CARD_COLORS[index];
+        }
+
+        const elements = {
+            startScreen: document.getElementById('start-screen'),
+            victoryModal: document.getElementById('victory-modal'),
+            teacherModal: document.getElementById('teacher-modal'),
+            statsPanel: document.getElementById('stats-panel'),
+            footerControls: document.getElementById('footer-controls'),
+            rowsContainer: document.getElementById('rows-container'),
+            roundDisplay: document.getElementById('round-display'),
+            timerDisplay: document.getElementById('timer-display'),
+            timerLabelText: document.getElementById('timer-label-text'),
+            penaltyBadge: document.getElementById('penalty-badge'),
+            aiModeBadge: document.getElementById('ai-mode-badge'),
+            aiStatusText: document.getElementById('ai-status-text'),
+            stepCountBadge: document.getElementById('step-count-badge'),
+            aiComparisonBox: document.getElementById('ai-comparison-box'),
+            aiTimeDisplay: document.getElementById('ai-time-display'),
+            aiSpeedComparison: document.getElementById('ai-speed-comparison'),
+            btnStartGame: document.getElementById('btn-start-game'),
+            btnHint: document.getElementById('btn-hint'),
+            btnCheck: document.getElementById('btn-check'),
+            btnRestart: document.getElementById('btn-restart'),
+            btnPlayAgain: document.getElementById('btn-play-again'),
+            btnWatchAi: document.getElementById('btn-watch-ai'),
+            btnOpenTeacherModal: document.getElementById('btn-open-teacher-modal'),
+            btnOpenTeacherStart: document.getElementById('btn-open-teacher-start'),
+            btnCloseTeacherModal: document.getElementById('btn-close-teacher-modal'),
+            btnSaveTeacherConfig: document.getElementById('btn-save-teacher-config'),
+            btnResetDefaultConfig: document.getElementById('btn-reset-default-config'),
+            startWelcomeText: document.getElementById('start-welcome-text'),
+            toastMessage: document.getElementById('toast-message'),
+            toastText: document.getElementById('toast-text'),
+            toastIcon: document.getElementById('toast-icon'),
+            finalTime: document.getElementById('final-time'),
+            finalScore: document.getElementById('final-score'),
+            victoryTitle: document.getElementById('victory-title'),
+            victoryRoundInfo: document.getElementById('victory-round-info'),
+            victoryFeedback: document.getElementById('victory-feedback'),
+            configWelcomeText: document.getElementById('config-welcome-text'),
+            configRow1: document.getElementById('config-row-1'),
+            previewStepsBox: document.getElementById('preview-steps-box')
+        };
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            secondsElapsed = 0;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+            const secs = (secondsElapsed % 60).toString().padStart(2, '0');
+            elements.timerDisplay.innerText = `${mins}:${secs}`;
+        }
+
+        function formatTime(totalSecs) {
+            const mins = Math.floor(totalSecs / 60).toString().padStart(2, '0');
+            const secs = (totalSecs % 60).toString().padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        function showToast(message, type = 'info') {
+            elements.toastText.innerText = message;
+            if (type === 'error') {
+                elements.toastIcon.className = 'fa-solid fa-triangle-exclamation text-rose-400 text-xl';
+            } else if (type === 'success') {
+                elements.toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-xl';
+            } else {
+                elements.toastIcon.className = 'fa-solid fa-lightbulb text-amber-400 text-xl';
+            }
+            elements.toastMessage.classList.remove('hidden');
+            setTimeout(() => {
+                elements.toastMessage.classList.add('hidden');
+            }, 2500);
+        }
+
+        function calculateScore(timeSecs) {
+            const baseScore = 1000;
+            const penalty = timeSecs * 5;
+            return Math.max(100, baseScore - penalty);
+        }
+
+        // RENDER GIAO DIỆN ĐỘNG THEO ĐÚNG SỐ BƯỚC
+        function renderBoard() {
+            elements.rowsContainer.innerHTML = '';
+            const totalRows = currentGameConfig.steps.length;
+            elements.stepCountBadge.innerText = `${totalRows} Hàng (${totalRows - 1} Bước chèn)`;
+
+            for (let r = 0; r < totalRows; r++) {
+                const isCompletedRow = r < activeRowIndex;
+                const isCurrentSourceRow = r === activeRowIndex;
+                const isTargetSlotRow = r === activeRowIndex + 1;
+
+                const rowDiv = document.createElement('div');
+                rowDiv.className = `flex items-center space-x-2 p-1.5 rounded-2xl transition-all ${
+                    isTargetSlotRow && !isAiMode ? 'bg-amber-100/90 border-2 border-dashed border-amber-400 row-active-indicator' :
+                    isTargetSlotRow && isAiMode ? 'bg-cyan-100/90 border-2 border-cyan-400' : 'bg-slate-100/80'
+                }`;
+
+                const labelBadge = document.createElement('div');
+                labelBadge.className = `w-20 sm:w-24 py-1 text-center font-black text-xs rounded-xl shrink-0 ${
+                    isCompletedRow ? 'bg-emerald-500 text-white' :
+                    isCurrentSourceRow ? 'bg-indigo-600 text-white' :
+                    isTargetSlotRow ? (isAiMode ? 'bg-cyan-600 text-white' : 'bg-amber-500 text-white shadow-md') : 'bg-slate-300 text-slate-600'
+                }`;
+                labelBadge.innerText = r === 0 ? "Ban đầu" : `Bước ${r}`;
+                rowDiv.appendChild(labelBadge);
+
+                const slotsGroup = document.createElement('div');
+                slotsGroup.className = 'flex-1 grid grid-cols-8 gap-1.5 sm:gap-2';
+                const targetArrayLength = currentGameConfig.steps[0].rowValues.length;
+
+                for (let c = 0; c < targetArrayLength; c++) {
+                    const slot = document.createElement('div');
+                    const isAiActive = isAiMode && aiMovingSlot && aiMovingSlot.r === r && aiMovingSlot.c === c;
+
+                    slot.className = `h-9 sm:h-11 rounded-xl flex items-center justify-center font-black text-sm sm:text-lg shadow-inner border-2 transition-all duration-200 ${
+                        isTargetSlotRow ? (isAiMode ? 'border-cyan-300 bg-cyan-50/50' : 'border-amber-300 bg-white/80 drop-slot cursor-pointer') : 'border-slate-200 bg-slate-200/50'
+                    } ${isAiActive ? 'ring-4 ring-cyan-400 scale-105' : ''}`;
+                    
+                    slot.dataset.rowIndex = r;
+                    slot.dataset.colIndex = c;
+
+                    if (isCompletedRow) {
+                        const val = activeRowState[r][c];
+                        slot.appendChild(createNumberCard(val, false));
+                    } else if (isCurrentSourceRow) {
+                        const val = activeRowState[r][c];
+                        const isMoved = currentDraftRow.some(item => item && item.sourceColIndex === c);
+                        
+                        if (!isMoved && val !== undefined && val !== null) {
+                            const card = createNumberCard(val, !isAiMode, r, c, false);
+                            if (isAiActive) card.classList.add('ai-moving-card');
+
+                            // Bấm 1 chạm: tự động nhảy xuống ô trống ở hàng dưới
+                            card.addEventListener('click', () => {
+                                if (isAiMode) return;
+                                const firstEmptyCol = currentDraftRow.findIndex(item => !item);
+                                if (firstEmptyCol !== -1) {
+                                    executeMove({ val, rowIndex: r, colIndex: c, isTargetCard: false }, firstEmptyCol);
+                                } else {
+                                    showToast("Hàng dưới đã đầy đủ số! Bấm Kiểm tra hoặc bấm vào số để gỡ lại.", "info");
+                                }
+                            });
+
+                            slot.appendChild(card);
+                        }
+                    } else if (isTargetSlotRow) {
+                        const draftItem = currentDraftRow[c];
+                        if (draftItem !== undefined && draftItem !== null) {
+                            const card = createNumberCard(draftItem.val, !isAiMode, r, c, true);
+                            if (isAiActive) card.classList.add('ai-moving-card');
+
+                            // Bấm vào số đã xếp để gỡ lại
+                            card.title = "Bấm để thu hồi số này về";
+                            card.addEventListener('click', (e) => {
+                                if (isAiMode) return;
+                                e.stopPropagation();
+                                currentDraftRow[c] = null;
+                                renderBoard();
+                            });
+
+                            slot.appendChild(card);
+                        }
+
+                        if (!isAiMode) {
+                            setupDropZone(slot, c);
+                        }
+                    }
+
+                    slotsGroup.appendChild(slot);
+                }
+
+                rowDiv.appendChild(slotsGroup);
+                elements.rowsContainer.appendChild(rowDiv);
+            }
+        }
+
+        function createNumberCard(val, isDraggable, rowIndex = -1, colIndex = -1, isTargetCard = false) {
+            const card = document.createElement('div');
+            const colorClass = getColorForNumber(val);
+            card.className = `w-full h-full rounded-lg flex items-center justify-center shadow-md border-b-4 font-black number-card ${colorClass}`;
+            card.innerText = val;
+
+            if (isDraggable && !isAiMode) {
+                card.draggable = true;
+                
+                card.addEventListener('dragstart', (e) => {
+                    draggedItemInfo = { val, rowIndex, colIndex, isTargetCard };
+                    card.classList.add('dragging');
+                    e.dataTransfer.setData('text/plain', JSON.stringify(draggedItemInfo));
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.classList.remove('dragging');
+                });
+            }
+
+            return card;
+        }
+
+        function setupDropZone(slot, targetColIndex) {
+            slot.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                slot.classList.add('drag-over');
+            });
+
+            slot.addEventListener('dragleave', () => {
+                slot.classList.remove('drag-over');
+            });
+
+            slot.addEventListener('drop', (e) => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                if (draggedItemInfo) {
+                    executeMove(draggedItemInfo, targetColIndex);
+                }
+            });
+        }
+
+        function executeMove(sourceInfo, targetColIndex) {
+            if (!sourceInfo) return;
+
+            const targetLength = currentGameConfig.steps[0].rowValues.length;
+            if (currentDraftRow.length !== targetLength) {
+                currentDraftRow = new Array(targetLength).fill(null);
+            }
+
+            if (sourceInfo.isTargetCard) {
+                const existingInTarget = currentDraftRow[targetColIndex];
+                currentDraftRow[targetColIndex] = currentDraftRow[sourceInfo.colIndex];
+                currentDraftRow[sourceInfo.colIndex] = existingInTarget;
+            } else {
+                currentDraftRow[targetColIndex] = {
+                    val: sourceInfo.val,
+                    sourceColIndex: sourceInfo.colIndex
+                };
+            }
+
+            renderBoard();
+        }
+
+        function applyHint() {
+            if (isAiMode) return;
+
+            const expectedSolution = currentGameConfig.steps[activeRowIndex + 1].rowValues;
+            const currentSourceRowVals = activeRowState[activeRowIndex];
+
+            currentDraftRow = expectedSolution.map((val, idx) => {
+                let srcIdx = currentSourceRowVals.indexOf(val);
+                if (srcIdx === -1) srcIdx = idx;
+                return { val: val, sourceColIndex: srcIdx };
+            });
+
+            secondsElapsed += 30;
+            hintsUsedCount++;
+            updateTimerDisplay();
+
+            elements.penaltyBadge.classList.remove('hidden');
+            setTimeout(() => {
+                elements.penaltyBadge.classList.add('hidden');
+            }, 2000);
+
+            renderBoard();
+            showToast(`Đã nhận hỗ trợ đáp án cho bước này! (+30s)`, "info");
+        }
+
+        function checkCurrentRowSolution() {
+            if (isAiMode) return;
+
+            const expectedSolution = currentGameConfig.steps[activeRowIndex + 1].rowValues;
+            const targetLength = currentGameConfig.steps[0].rowValues.length;
+
+            let isFilled = true;
+            for (let i = 0; i < targetLength; i++) {
+                if (!currentDraftRow[i]) {
+                    isFilled = false;
+                    break;
+                }
+            }
+
+            if (!isFilled) {
+                showToast("Hãy điền đủ tất cả 8 số trước khi kiểm tra!", "error");
+                return;
+            }
+
+            const userValues = currentDraftRow.map(item => item.val);
+            let isCorrect = userValues.every((val, i) => val === expectedSolution[i]);
+
+            if (isCorrect) {
+                activeRowState[activeRowIndex + 1] = [...userValues];
+                activeRowIndex++;
+                currentDraftRow = new Array(targetLength).fill(null);
+
+                // Kiểm tra xem đã đến hàng cuối cùng chưa
+                if (activeRowIndex >= currentGameConfig.steps.length - 1) {
+                    stopTimer();
+                    humanTimeElapsed = secondsElapsed;
+                    humanScore = calculateScore(humanTimeElapsed);
+                    showToast("Xuất sắc! Thuật toán đã hoàn thành chuẩn xác!", "success");
+                    setTimeout(() => showVictoryModal(false), 800);
+                } else {
+                    showToast(`Chính xác bước ${activeRowIndex}! Tiếp tục bước tiếp theo.`, "success");
+                    renderBoard();
+                }
+            } else {
+                showToast("Chưa đúng quy tắc chèn! Bấm vào số để gỡ lại và thử lại.", "error");
+            }
+        }
+
+        async function animateAiDragAndDrop(sourceRow, sourceCol, targetRow, targetCol, value) {
+            const sourceSlot = document.querySelector(`[data-row-index="${sourceRow}"][data-col-index="${sourceCol}"]`);
+            const targetSlot = document.querySelector(`[data-row-index="${targetRow}"][data-col-index="${targetCol}"]`);
+
+            if (!sourceSlot || !targetSlot) return;
+
+            const sourceRect = sourceSlot.getBoundingClientRect();
+            const targetRect = targetSlot.getBoundingClientRect();
+
+            const flyDurationMs = Math.max(100, Math.round(500 / aiSpeedFactor));
+
+            const flyingCard = createNumberCard(value, false);
+            flyingCard.classList.add('ai-animated-fly-card');
+            flyingCard.style.transition = `all ${flyDurationMs}ms cubic-bezier(0.25, 1, 0.5, 1)`;
+            flyingCard.style.left = `${sourceRect.left}px`;
+            flyingCard.style.top = `${sourceRect.top}px`;
+            flyingCard.style.width = `${sourceRect.width}px`;
+            flyingCard.style.height = `${sourceRect.height}px`;
+
+            document.body.appendChild(flyingCard);
+            flyingCard.getBoundingClientRect();
+
+            flyingCard.style.left = `${targetRect.left}px`;
+            flyingCard.style.top = `${targetRect.top}px`;
+
+            await new Promise(resolve => setTimeout(resolve, flyDurationMs));
+
+            if (flyingCard.parentNode) {
+                flyingCard.parentNode.removeChild(flyingCard);
+            }
+        }
+
+        async function runAiAutoSort() {
+            isAiMode = true;
+            elements.aiModeBadge.classList.remove('hidden');
+            elements.footerControls.classList.add('hidden');
+            elements.timerLabelText.innerText = "THỜI GIAN AI";
+            
+            initGameState();
+            renderBoard();
+            startTimer();
+
+            const targetLength = currentGameConfig.steps[0].rowValues.length;
+            const totalTargetRows = currentGameConfig.steps.length - 1;
+
+            for (let r = 0; r < totalTargetRows; r++) {
+                if (!isAiMode) return;
+
+                elements.aiStatusText.innerText = `ROBOT AI ĐANG THỰC HIỆN BƯỚC ${r + 1} / ${totalTargetRows}...`;
+                const targetValues = currentGameConfig.steps[r + 1].rowValues;
+                const sourceRowValues = activeRowState[r];
+
+                currentDraftRow = new Array(targetLength).fill(null);
+
+                for (let c = 0; c < targetLength; c++) {
+                    if (!isAiMode) return;
+
+                    const valToPlace = targetValues[c];
+
+                    let sourceColIdx = -1;
+                    for (let sc = 0; sc < targetLength; sc++) {
+                        const isMoved = currentDraftRow.some(item => item && item.sourceColIndex === sc);
+                        if (!isMoved && sourceRowValues[sc] === valToPlace) {
+                            sourceColIdx = sc;
+                            break;
+                        }
+                    }
+
+                    if (sourceColIdx === -1) sourceColIdx = c;
+
+                    aiMovingSlot = { r, c: sourceColIdx };
+                    renderBoard();
+                    
+                    const waitPre = Math.max(40, Math.round(250 / aiSpeedFactor));
+                    await new Promise(resolve => setTimeout(resolve, waitPre));
+
+                    await animateAiDragAndDrop(r, sourceColIdx, r + 1, c, valToPlace);
+
+                    currentDraftRow[c] = { val: valToPlace, sourceColIndex: sourceColIdx };
+                    aiMovingSlot = { r: r + 1, c };
+                    renderBoard();
+
+                    const waitPost = Math.max(40, Math.round(250 / aiSpeedFactor));
+                    await new Promise(resolve => setTimeout(resolve, waitPost));
+                }
+
+                aiMovingSlot = null;
+                const waitRow = Math.max(100, Math.round(400 / aiSpeedFactor));
+                await new Promise(resolve => setTimeout(resolve, waitRow));
+
+                activeRowState[r + 1] = [...targetValues];
+                activeRowIndex++;
+                currentDraftRow = new Array(targetLength).fill(null);
+                renderBoard();
+            }
+
+            stopTimer();
+            aiTimeElapsed = secondsElapsed;
+            showToast("Robot AI đã hoàn thành xong thuật toán!", "success");
+
+            setTimeout(() => {
+                showVictoryModal(true);
+            }, 600);
+        }
+
+        function initGameState() {
+            activeRowIndex = 0;
+            hintsUsedCount = 0;
+            const targetLength = currentGameConfig.steps[0].rowValues.length;
+            activeRowState = [ [...currentGameConfig.steps[0].rowValues] ];
+            currentDraftRow = new Array(targetLength).fill(null);
+            elements.penaltyBadge.classList.add('hidden');
+        }
+
+        function startGame() {
+            isAiMode = false;
+            elements.startScreen.classList.add('hidden');
+            elements.statsPanel.classList.remove('hidden');
+            elements.footerControls.classList.remove('hidden');
+            elements.aiModeBadge.classList.add('hidden');
+            elements.timerLabelText.innerText = "THỜI GIAN";
+
+            if (roundCounter >= 2) {
+                elements.btnHint.classList.remove('hidden');
+            } else {
+                elements.btnHint.classList.add('hidden');
+            }
+            
+            initGameState();
+            elements.roundDisplay.innerText = roundCounter;
+            startTimer();
+            renderBoard();
+        }
+
+        function restartGame() {
+            roundCounter++;
+            isAiMode = false;
+            
+            // Tạo dãy số ngẫu nhiên mới và tự động tính số bước chính xác
+            const newRandomNumbers = generateRandomArray();
+            currentGameConfig.steps = calculateInsertionSortSteps(newRandomNumbers);
+
+            elements.victoryModal.classList.add('hidden');
+            elements.aiModeBadge.classList.add('hidden');
+            elements.footerControls.classList.remove('hidden');
+            elements.timerLabelText.innerText = "THỜI GIAN";
+
+            if (roundCounter >= 2) {
+                elements.btnHint.classList.remove('hidden');
+            } else {
+                elements.btnHint.classList.add('hidden');
+            }
+            
+            initGameState();
+            elements.roundDisplay.innerText = roundCounter;
+            startTimer();
+            renderBoard();
+            showToast(`Vòng ${roundCounter}: Dãy số mới có ${currentGameConfig.steps.length - 1} bước chèn!`, "info");
+        }
+
+        function showVictoryModal(fromAiDemo = false) {
+            elements.victoryRoundInfo.innerText = `Lần chơi thứ ${roundCounter} (${currentGameConfig.steps.length - 1} bước chèn)`;
+            elements.finalTime.innerText = formatTime(humanTimeElapsed);
+            elements.finalScore.innerText = humanScore;
+
+            if (fromAiDemo || aiTimeElapsed > 0) {
+                elements.aiComparisonBox.classList.remove('hidden');
+                elements.aiTimeDisplay.innerText = formatTime(aiTimeElapsed);
+
+                if (humanTimeElapsed <= aiTimeElapsed) {
+                    elements.aiSpeedComparison.innerText = "Học sinh nhanh hơn AI! 🎉";
+                    elements.aiSpeedComparison.className = "text-emerald-600 font-black text-xs sm:text-sm";
+                } else {
+                    elements.aiSpeedComparison.innerText = "AI nhanh hơn chút ít 🤖";
+                    elements.aiSpeedComparison.className = "text-cyan-700 font-black text-xs sm:text-sm";
+                }
+            } else {
+                elements.aiComparisonBox.classList.add('hidden');
+            }
+
+            if (fromAiDemo) {
+                elements.victoryTitle.innerText = "Robot AI Đã Hoàn Thành!";
+                elements.victoryFeedback.innerText = "Đã đối chiếu kết quả giữa Học Sinh và Robot AI!";
+            } else {
+                elements.victoryTitle.innerText = "Hoàn Thành Xuất Sắc!";
+                elements.victoryFeedback.innerText = hintsUsedCount > 0 
+                    ? `Bạn đã hoàn thành với ${hintsUsedCount} lần dùng hỗ trợ (+${hintsUsedCount * 30}s)!`
+                    : "Chúc mừng bạn đã hoàn thành thuật toán một cách hoàn hảo!";
+            }
+
+            elements.victoryModal.classList.remove('hidden');
+        }
+
+        function updateTeacherPreview(arr) {
+            const calculated = calculateInsertionSortSteps(arr);
+            elements.previewStepsBox.innerHTML = '';
+            calculated.forEach((s, idx) => {
+                const item = document.createElement('div');
+                item.className = 'py-0.5 border-b border-indigo-100 last:border-none flex justify-between';
+                item.innerHTML = `<span><strong>${idx === 0 ? 'Ban đầu' : 'Bước ' + idx}:</strong> [${s.rowValues.join(', ')}]</span> <span class="text-indigo-600 font-sans">${s.note}</span>`;
+                elements.previewStepsBox.appendChild(item);
+            });
+        }
+
+        function openTeacherModal() {
+            elements.configWelcomeText.value = currentGameConfig.welcomeText;
+            elements.configRow1.value = currentGameConfig.steps[0].rowValues.join(', ');
+            updateTeacherPreview(currentGameConfig.steps[0].rowValues);
+
+            elements.configRow1.oninput = () => {
+                const parsed = parseRowInput(elements.configRow1.value);
+                if (parsed.length >= 2) {
+                    updateTeacherPreview(parsed);
+                }
+            };
+
+            elements.teacherModal.classList.remove('hidden');
+        }
+
+        function closeTeacherModal() {
+            elements.teacherModal.classList.add('hidden');
+        }
+
+        function parseRowInput(inputStr) {
+            return inputStr.split(',')
+                .map(item => parseInt(item.trim()))
+                .filter(item => !isNaN(item));
+        }
+
+        function saveTeacherConfig() {
+            try {
+                const newWelcome = elements.configWelcomeText.value.trim();
+                const r1 = parseRowInput(elements.configRow1.value);
+
+                if (r1.length < 3) {
+                    showToast("Vui lòng nhập ít nhất 3 con số!", "error");
+                    return;
+                }
+
+                currentGameConfig = {
+                    welcomeText: newWelcome || "Bạn hãy sắp xếp dãy số sau theo thuật toán chèn trực tiếp!",
+                    steps: calculateInsertionSortSteps(r1)
+                };
+
+                elements.startWelcomeText.innerText = currentGameConfig.welcomeText;
+                closeTeacherModal();
+                showToast(`Đã lưu! Dãy số này cần đúng ${currentGameConfig.steps.length - 1} bước chèn.`, "success");
+
+                if (elements.startScreen.classList.contains('hidden')) {
+                    roundCounter = 1;
+                    initGameState();
+                    elements.roundDisplay.innerText = roundCounter;
+                    startTimer();
+                    renderBoard();
+                }
+            } catch (err) {
+                showToast("Định dạng chưa đúng! Hãy nhập các số cách nhau bởi dấu phẩy.", "error");
+            }
+        }
+
+        function resetDefaultTeacherConfig() {
+            elements.configWelcomeText.value = "Bạn hãy sắp xếp dãy số sau theo thuật toán chèn trực tiếp!";
+            elements.configRow1.value = DEFAULT_INITIAL_ARRAY.join(', ');
+            updateTeacherPreview(DEFAULT_INITIAL_ARRAY);
+            showToast("Đã khôi phục dãy số mẫu!", "info");
+        }
+
+        function setupSpeedButtons() {
+            const speedBtns = document.querySelectorAll('.speed-toggle-btn');
+            speedBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const speed = parseInt(btn.dataset.speed);
+                    aiSpeedFactor = speed;
+
+                    speedBtns.forEach(b => {
+                        b.className = 'speed-toggle-btn px-2 py-0.5 rounded-lg text-xs font-black transition text-cyan-800 hover:bg-white/60';
+                    });
+                    btn.className = 'speed-toggle-btn px-2 py-0.5 rounded-lg text-xs font-black transition bg-white text-cyan-950 shadow-sm border border-cyan-300';
+                    
+                    showToast(`Tốc độ AI: ${btn.innerText}`, "info");
+                });
+            });
+        }
+
+        function initEvents() {
+            elements.btnStartGame.addEventListener('click', startGame);
+            elements.btnHint.addEventListener('click', applyHint);
+            elements.btnCheck.addEventListener('click', checkCurrentRowSolution);
+            elements.btnRestart.addEventListener('click', restartGame);
+            elements.btnPlayAgain.addEventListener('click', restartGame);
+
+            elements.btnWatchAi.addEventListener('click', () => {
+                elements.victoryModal.classList.add('hidden');
+                runAiAutoSort();
+            });
+
+            elements.btnOpenTeacherModal.addEventListener('click', openTeacherModal);
+            elements.btnOpenTeacherStart.addEventListener('click', openTeacherModal);
+            elements.btnCloseTeacherModal.addEventListener('click', closeTeacherModal);
+            elements.btnSaveTeacherConfig.addEventListener('click', saveTeacherConfig);
+            elements.btnResetDefaultConfig.addEventListener('click', resetDefaultTeacherConfig);
+
+            setupSpeedButtons();
+        }
+
+        window.onload = function() {
+            initEvents();
+            elements.startWelcomeText.innerText = currentGameConfig.welcomeText;
+        };
+    </script>
+</body>
+</html>
